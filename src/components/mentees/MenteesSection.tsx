@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Users, Search, Download, Eye, User, GraduationCap } from 'lucide-react';
+import { Users, Search, Download, Eye, User, GraduationCap, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types/user';
 import { databaseService } from '../../services/databaseService';
@@ -13,9 +13,24 @@ const MenteesSection: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [mentees, setMentees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [permissionRequests, setPermissionRequests] = useState<any[]>([]);
 
   useEffect(() => {
     loadMentees();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
+      const [leaves, perms] = await Promise.all([
+        databaseService.getLeaveRequestsByMentor(user.id),
+        databaseService.getPermissionRequestsByMentor(user.id),
+      ]);
+      setLeaveRequests(leaves || []);
+      setPermissionRequests(perms || []);
+    };
+    load();
   }, [user?.id]);
 
   const loadMentees = async () => {
@@ -175,6 +190,111 @@ const MenteesSection: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Leave & Permission Requests from mentees */}
+      {(leaveRequests.length > 0 || permissionRequests.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <MessageSquare className="h-5 w-5" />
+              <span>Leave & Permission Requests</span>
+            </CardTitle>
+            <p className="text-sm text-gray-500 font-normal">Requests from your mentees — Accept or Reject</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {leaveRequests.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Leave requests</h4>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left p-3">Student</th>
+                        <th className="text-left p-3">Type</th>
+                        <th className="text-left p-3">Start</th>
+                        <th className="text-left p-3">End</th>
+                        <th className="text-left p-3">Status</th>
+                        <th className="text-left p-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveRequests.map((r: any) => (
+                        <tr key={r.id} className="border-b">
+                          <td className="p-3">{r.studentName || r.registerId || 'Student'}</td>
+                          <td className="p-3">{r.type}</td>
+                          <td className="p-3">{r.start_date}</td>
+                          <td className="p-3">{r.end_date}</td>
+                          <td className="p-3">
+                            <Badge variant={r.status === 'APPROVED' ? 'default' : r.status === 'REJECTED' ? 'destructive' : 'secondary'}>{r.status}</Badge>
+                          </td>
+                          <td className="p-3">
+                            {r.status === 'PENDING' && (
+                              <span className="flex gap-1">
+                                <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={async () => {
+                                  await databaseService.updateLeaveRequestStatus(r.id, 'APPROVED');
+                                  setLeaveRequests(prev => prev.map(x => x.id === r.id ? { ...x, status: 'APPROVED' } : x));
+                                }}>Accept</Button>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={async () => {
+                                  await databaseService.updateLeaveRequestStatus(r.id, 'REJECTED');
+                                  setLeaveRequests(prev => prev.map(x => x.id === r.id ? { ...x, status: 'REJECTED' } : x));
+                                }}>Reject</Button>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {permissionRequests.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Permission requests</h4>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left p-3">Student</th>
+                        <th className="text-left p-3">Type</th>
+                        <th className="text-left p-3">Date</th>
+                        <th className="text-left p-3">Status</th>
+                        <th className="text-left p-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {permissionRequests.map((r: any) => (
+                        <tr key={r.id} className="border-b">
+                          <td className="p-3">{r.studentName || r.registerId || 'Student'}</td>
+                          <td className="p-3">{r.type}</td>
+                          <td className="p-3">{r.request_date}</td>
+                          <td className="p-3">
+                            <Badge variant={r.status === 'APPROVED' ? 'default' : r.status === 'REJECTED' ? 'destructive' : 'secondary'}>{r.status}</Badge>
+                          </td>
+                          <td className="p-3">
+                            {r.status === 'PENDING' && (
+                              <span className="flex gap-1">
+                                <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={async () => {
+                                  await databaseService.updatePermissionRequestStatus(r.id, 'APPROVED');
+                                  setPermissionRequests(prev => prev.map(x => x.id === r.id ? { ...x, status: 'APPROVED' } : x));
+                                }}>Accept</Button>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={async () => {
+                                  await databaseService.updatePermissionRequestStatus(r.id, 'REJECTED');
+                                  setPermissionRequests(prev => prev.map(x => x.id === r.id ? { ...x, status: 'REJECTED' } : x));
+                                }}>Reject</Button>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Mentees List */}
       <Card>

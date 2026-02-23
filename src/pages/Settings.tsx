@@ -155,41 +155,23 @@ const Settings: React.FC = () => {
   }, [user]);
 
   const handleSaveProfile = async () => {
-    console.log('🔍 Starting profile save...');
-    console.log('Current student:', currentStudent);
-    console.log('Profile data:', profileData);
-    console.log('User:', user);
 
     if (!currentStudent) {
-      console.log('❌ No current student found, trying to fetch...');
-      console.log('User ID:', user?.id);
-      console.log('User Email:', user?.email);
-      
+
       // Try to fetch student data by user_id first, then by email
       try {
         let studentData = await supabaseService.getStudentByUserId(user?.id || '');
-        console.log('Result from getStudentByUserId:', studentData ? 'Found' : 'Not found');
-        
+
         if (!studentData) {
-          console.log('Trying to fetch by email...');
           studentData = await supabaseService.getStudentByEmail(user?.email || '');
-          console.log('Result from getStudentByEmail:', studentData ? 'Found' : 'Not found');
         }
-        
+
         if (studentData) {
-          console.log('✅ Found student data:', studentData);
           setCurrentStudent(studentData);
-          
+
           // Continue with the save operation
           await performSave(studentData);
         } else {
-          console.log('❌ No student data found, creating new student record...');
-          console.log('Profile data to create:', {
-            userId: user?.id,
-            name: profileData.name || user?.name || '',
-            email: profileData.email || user?.email || ''
-          });
-          
           // Create a new student record if it doesn't exist
           const newStudentData = {
             userId: user?.id,
@@ -222,13 +204,10 @@ const Settings: React.FC = () => {
             attendancePercentage: 0,
             isActive: true
           };
-          
-          console.log('📝 Attempting to create student with data:', newStudentData);
+
           const createdStudent = await supabaseService.addStudent(newStudentData);
-          console.log('📊 Student creation result:', createdStudent ? 'Success' : 'Failed');
-          
+
           if (createdStudent) {
-            console.log('✅ Created new student record:', createdStudent);
             setCurrentStudent(createdStudent);
             await performSave(createdStudent);
           } else {
@@ -256,8 +235,7 @@ const Settings: React.FC = () => {
 
   const performSave = async (studentData: StudentData) => {
     try {
-      console.log('💾 Performing save with student data:', studentData);
-      
+
       // Create updated student data
       const updatedStudent: StudentData = {
         ...studentData,
@@ -288,14 +266,9 @@ const Settings: React.FC = () => {
         languages: profileData.languages
       };
 
-      console.log('📝 Updated student data:', updatedStudent);
-
       // Save to database
-      console.log('💾 Calling supabaseService.updateStudent...');
       const result = await supabaseService.updateStudent(studentData.id, updatedStudent);
-      
-      console.log('📊 Update result:', result);
-      
+
       if (result) {
         setCurrentStudent(updatedStudent);
         // Reload the profile data to reflect the changes
@@ -346,13 +319,11 @@ const Settings: React.FC = () => {
             supplies: reloadedStudent.supplies || []
           }));
         }
-        console.log('✅ Profile updated successfully');
         toast({
           title: "Profile Updated",
           description: "Your profile information has been saved successfully.",
         });
       } else {
-        console.log('❌ Update returned null/false');
         toast({
           title: "Error",
           description: "Failed to save profile changes. Please try again.",

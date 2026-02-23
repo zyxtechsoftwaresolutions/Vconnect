@@ -33,6 +33,11 @@ interface IDCardData {
   phone?: string;
   employeeId?: string;
   designation?: string;
+  /** e.g. "B.Tech ( CSE - A )" */
+  courseStream?: string;
+  dateOfBirth?: string;
+  aadharNo?: string;
+  address?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -54,6 +59,37 @@ const DigitalIDCard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [flipped, setFlipped] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const swipeThreshold = 60;
+
+  const handleSwipeStart = (clientX: number) => {
+    touchStartX.current = clientX;
+  };
+
+  const handleSwipeEnd = (clientX: number) => {
+    const delta = clientX - touchStartX.current;
+    if (Math.abs(delta) >= swipeThreshold) {
+      setFlipped((prev) => !prev);
+    }
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    handleSwipeStart(e.touches[0].clientX);
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    handleSwipeEnd(e.changedTouches[0].clientX);
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    handleSwipeStart(e.clientX);
+  };
+
+  const onMouseUp = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    handleSwipeEnd(e.clientX);
+  };
 
   useEffect(() => {
     if (user) loadCardData();
@@ -81,6 +117,13 @@ const DigitalIDCard: React.FC = () => {
           base.bloodGroup = student.bloodGroup;
           base.phone = student.phoneNumber;
           base.department = student.department || base.department;
+          base.dateOfBirth = student.dateOfBirth;
+          base.aadharNo = student.aadharId;
+          base.address = student.address;
+          base.courseStream =
+            [student.regulation || 'B.Tech', (student.class || student.department || '').replace(/-/g, ' - ')]
+              .filter(Boolean)
+              .join(' ( ') + (student.class || student.department ? ' )' : '');
           if (!base.profilePicture) {
             const { data: uRec } = await db.from('users').select('profile_picture').eq('id', user.id).single();
             if (uRec?.profile_picture) base.profilePicture = uRec.profile_picture;
@@ -200,11 +243,20 @@ body{font-family:'Inter',sans-serif;background:#fff;display:flex;flex-direction:
         </Button>
       </div>
 
-      {/* The Card */}
+      {/* The Card - swipe or drag to flip */}
       <div className="flex justify-center" ref={cardRef}>
         <div
-          className="relative"
+          className="relative touch-pan-y select-none cursor-grab active:cursor-grabbing"
           style={{ width: 340, height: 540, perspective: 1000 }}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown}
+          onMouseUp={onMouseUp}
+          onMouseLeave={() => touchStartX.current = 0}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFlipped((f) => !f); } }}
+          aria-label={flipped ? 'Swipe or click to show front' : 'Swipe or click to show back'}
         >
           <div
             className="absolute inset-0 transition-transform duration-700"
@@ -288,12 +340,27 @@ body{font-family:'Inter',sans-serif;background:#fff;display:flex;flex-direction:
 
                   {/* Details grid */}
                   <div className="mt-3 w-full space-y-1.5 text-[11px]">
+                    {cardData.courseStream && (
+                      <DetailRow label="Course" value={cardData.courseStream} />
+                    )}
                     <DetailRow label="Department" value={cardData.department} />
                     {isStudent && cardData.studentClass && (
                       <DetailRow label="Class" value={cardData.studentClass} />
                     )}
                     {!isStudent && cardData.designation && (
                       <DetailRow label="Designation" value={cardData.designation} />
+                    )}
+                    {cardData.dateOfBirth && (
+                      <DetailRow label="DOB" value={cardData.dateOfBirth} />
+                    )}
+                    {cardData.aadharNo && (
+                      <DetailRow label="Aadhar No" value={cardData.aadharNo} />
+                    )}
+                    {cardData.address && (
+                      <DetailRow label="Address" value={cardData.address} />
+                    )}
+                    {cardData.phone && (
+                      <DetailRow label="Ph No" value={cardData.phone} />
                     )}
                     {cardData.bloodGroup && (
                       <DetailRow label="Blood Group" value={cardData.bloodGroup} />

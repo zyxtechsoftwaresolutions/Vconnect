@@ -26,7 +26,6 @@ import { UserRole, Department } from '../types/user';
 import LibrarianDashboard from '../components/dashboard/LibrarianDashboard';
 import AccountantDashboard from '../components/dashboard/AccountantDashboard';
 import ExamCellCoordinatorDashboard from '../components/dashboard/ExamCellCoordinatorDashboard';
-import FacultyBurnoutDetection from '../components/dashboard/FacultyBurnoutDetection';
 import DashboardGroups from '../components/dashboard/DashboardGroups';
 
 import { CardLoader } from '../components/ui/loader';
@@ -52,7 +51,6 @@ const Dashboard: React.FC = () => {
           if (studentData) {
             setCurrentStudent(studentData);
                   } else {
-          console.log('Student not found in database');
           setCurrentStudent(null);
         }
         } catch (error) {
@@ -123,7 +121,6 @@ const Dashboard: React.FC = () => {
       if (result) {
         // Update the current student data
         setCurrentStudent(updatedStudent);
-        console.log('Student profile updated successfully:', updatedStudent.name);
       } else {
         console.error('Failed to update student in database');
       }
@@ -254,13 +251,6 @@ const Dashboard: React.FC = () => {
       {/* Stats */}
       <DashboardStats />
 
-      {/* Faculty Load & Burnout Detection for Admin, Principal, HOD */}
-      {(user?.role === UserRole.ADMIN ||
-        user?.role === UserRole.PRINCIPAL ||
-        user?.role === UserRole.HOD) && (
-        <FacultyBurnoutDetection />
-      )}
-
       {/* Mentor Details for Students and CRs — mentees see their mentor here */}
       {isStudentOrCR && currentStudent?.mentor && (
         <MentorDetails mentor={currentStudent.mentor as any} studentId={currentStudent.id} />
@@ -338,7 +328,6 @@ const Dashboard: React.FC = () => {
             // Refresh dashboard data after transfer
             if (isStudentOrCR) {
               // Reload current student data if needed
-              console.log('Student transfer completed, dashboard updated');
             }
           }}
         />

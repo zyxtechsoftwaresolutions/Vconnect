@@ -39,7 +39,6 @@ const DepartmentTechNews: React.FC<DepartmentTechNewsProps> = ({ department }) =
   // Set up auto-refresh every 12 hours
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('Auto-refreshing tech news for', department);
       loadNews(true); // Silent refresh
     }, 12 * 60 * 60 * 1000); // 12 hours
 

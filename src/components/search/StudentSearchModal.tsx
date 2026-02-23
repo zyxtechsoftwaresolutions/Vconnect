@@ -39,10 +39,9 @@ const StudentSearchModal: React.FC<StudentSearchModalProps> = ({ onClose }) => {
   // Subscribe to global student updates
   useEffect(() => {
     const unsubscribe = subscribeToStudentUpdates((updatedStudents) => {
-      console.log('🔄 StudentSearchModal received update:', updatedStudents.length, 'students');
       setStudents(updatedStudents);
     });
-    
+
     return unsubscribe;
   }, []);
 
@@ -59,11 +58,6 @@ const StudentSearchModal: React.FC<StudentSearchModalProps> = ({ onClose }) => {
         allStudents = await getAllStudents();
       } else if (user.department) {
         allStudents = await getStudentsByDepartment(user.department);
-      }
-
-      console.log('📋 Loaded students from unified service:', allStudents);
-      if (allStudents.length > 0) {
-        console.log('🔍 First student sample data:', allStudents[0]);
       }
 
       setStudents(allStudents);
@@ -85,25 +79,10 @@ const StudentSearchModal: React.FC<StudentSearchModalProps> = ({ onClose }) => {
   );
 
   const handleStudentSelect = async (student: StudentData) => {
-    console.log('🔍 Selected student data:', student);
-    console.log('📊 Student fields check:');
-    console.log('- registerId:', student.registerId);
-    console.log('- phoneNumber:', student.phoneNumber);
-    console.log('- fatherName:', student.fatherName);
-    console.log('- motherName:', student.motherName);
-    console.log('- address:', student.address);
-    console.log('- skills:', student.skills);
-    console.log('- languages:', student.languages);
-    console.log('- hobbies:', student.hobbies);
-    console.log('- isHostler:', student.isHostler);
-    console.log('- transportDetails:', student.transportDetails);
-    console.log('- hostelDetails:', student.hostelDetails);
-    
     // Refresh student data to ensure we have the latest
     const freshStudent = await getStudentById(student.id);
     if (freshStudent) {
       setSelectedStudent(freshStudent);
-      console.log('✅ Loaded fresh student data:', freshStudent.name);
     } else {
       setSelectedStudent(student);
     }
@@ -115,8 +94,6 @@ const StudentSearchModal: React.FC<StudentSearchModalProps> = ({ onClose }) => {
 
   const handleSaveProfile = async (updatedStudent: StudentData) => {
     try {
-      console.log('🔄 Updating student profile in search modal...');
-      
       // Update in the unified service (persists changes)
       const result = await updateStudent(updatedStudent.id, updatedStudent);
       
@@ -124,7 +101,6 @@ const StudentSearchModal: React.FC<StudentSearchModalProps> = ({ onClose }) => {
         // Update the student in the local state
         setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
         setSelectedStudent(updatedStudent);
-        console.log('Student profile updated successfully:', updatedStudent.name);
         
         // Notify all other components
         notifyStudentUpdates([updatedStudent]);

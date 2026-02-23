@@ -38,6 +38,9 @@ interface GroupedStudent {
   lateCount: number;
 }
 
+// Cache by date so returning to the page doesn't trigger a full reload
+let attendanceCache: { date: string; records: RawRecord[] } = { date: '', records: [] };
+
 const Attendance: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,8 +69,14 @@ const Attendance: React.FC = () => {
     }
   };
 
-  const loadAttendanceRecords = async () => {
-    setLoading(true);
+  const loadAttendanceRecords = async (showLoader = true) => {
+    const isCached = attendanceCache.date === selectedDate && attendanceCache.records.length > 0;
+    if (isCached) {
+      setRawRecords(attendanceCache.records);
+      setLoading(false);
+    } else if (showLoader) {
+      setLoading(true);
+    }
     try {
       const { data, error } = await supabase
         .from('attendance_records')
@@ -78,10 +87,11 @@ const Attendance: React.FC = () => {
       if (error) {
         console.error('Error loading attendance:', error);
         setRawRecords([]);
+        attendanceCache = { date: selectedDate, records: [] };
         return;
       }
 
-      setRawRecords((data || []).map((r: any) => ({
+      const mapped = (data || []).map((r: any) => ({
         id: r.id,
         student_id: r.student_id,
         class_id: r.class_id,
@@ -92,10 +102,13 @@ const Attendance: React.FC = () => {
         studentName: r.students?.name || 'Unknown',
         registerId: r.students?.register_id || 'N/A',
         className: r.classes?.name || r.students?.class || 'N/A',
-      })));
+      }));
+      attendanceCache = { date: selectedDate, records: mapped };
+      setRawRecords(mapped);
     } catch (error) {
       console.error('Error:', error);
       setRawRecords([]);
+      attendanceCache = { date: selectedDate, records: [] };
     } finally {
       setLoading(false);
     }
@@ -243,16 +256,18 @@ const Attendance: React.FC = () => {
           else if (r.status === 'LATE') s.late++;
         }
 
-        // Update each student's percentage
-        for (const [studentId, s] of studentStats) {
+        // Update all students in parallel (much faster than sequential)
+        const updatePromises = Array.from(studentStats.entries()).map(([studentId, s]) => {
           const pct = s.total > 0 ? ((s.present + s.late * 0.5) / s.total) * 100 : 0;
-          await db.from('students').update({
+          return db.from('students').update({
             attendance_percentage: parseFloat(pct.toFixed(2)),
             attendance: `${pct.toFixed(1)}%`,
           }).eq('id', studentId);
-        }
+        });
+        await Promise.all(updatePromises);
       }
 
+      attendanceCache = { date: '', records: [] };
       await loadAttendanceRecords();
     } catch (error: any) {
       console.error('Error saving attendance:', error);
@@ -284,6 +299,7 @@ const Attendance: React.FC = () => {
       }
 
       toast({ title: 'Updated', description: `Status changed to ${newStatus}.` });
+      attendanceCache = { date: '', records: [] };
       await loadAttendanceRecords();
     } catch (err: any) {
       console.error('Error:', err);
@@ -447,14 +463,10 @@ const Attendance: React.FC = () => {
                     <th className="text-left p-3 text-xs font-semibold text-gray-600">Register ID</th>
                     <th className="text-left p-3 text-xs font-semibold text-gray-600">Student</th>
                     <th className="text-left p-3 text-xs font-semibold text-gray-600">Class</th>
-                    <th className="text-center p-3 text-xs font-semibold text-gray-600">
-                      <div className="flex justify-center gap-3">
-                        {[1,2,3,4,5,6,7].map(p => (
-                          <span key={p} className="w-6 text-center">P{p}</span>
-                        ))}
-                      </div>
-                    </th>
-                    <th className="text-center p-3 text-xs font-semibold text-gray-600">Summary</th>
+                    {[1, 2, 3, 4, 5, 6, 7].map(p => (
+                      <th key={p} className="text-center p-3 text-xs font-semibold text-gray-600 w-10 min-w-10">P{p}</th>
+                    ))}
+                    <th className="text-center p-3 text-xs font-semibold text-gray-600 w-24">Summary</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -464,20 +476,18 @@ const Attendance: React.FC = () => {
                       <td className="p-3 text-sm font-medium text-blue-600">{student.registerId}</td>
                       <td className="p-3 text-sm font-medium">{student.studentName}</td>
                       <td className="p-3"><Badge variant="outline" className="text-xs">{student.className}</Badge></td>
-                      <td className="p-3">
-                        <div className="flex justify-center gap-3">
-                          {[1,2,3,4,5,6,7].map(p => {
-                            const periodData = student.periods[p];
-                            const color = periodData ? dotColor(periodData.status) : 'bg-gray-200';
-                            const title = periodData
-                              ? `P${p}: ${periodData.status} (${periodData.subject})`
-                              : `P${p}: No data`;
-                            return (
-                              <span key={p} className={`w-3 h-3 rounded-full ${color} inline-block cursor-help`} title={title}></span>
-                            );
-                          })}
-                        </div>
-                      </td>
+                      {[1, 2, 3, 4, 5, 6, 7].map(p => {
+                        const periodData = student.periods[p];
+                        const color = periodData ? dotColor(periodData.status) : 'bg-gray-200';
+                        const title = periodData
+                          ? `P${p}: ${periodData.status} (${periodData.subject})`
+                          : `P${p}: No data`;
+                        return (
+                          <td key={p} className="p-3 text-center align-middle">
+                            <span className={`w-3 h-3 rounded-full ${color} inline-block cursor-help`} title={title} />
+                          </td>
+                        );
+                      })}
                       <td className="p-3 text-center">
                         <span className="text-xs">
                           <span className="text-green-600 font-medium">{student.presentCount}P</span>
@@ -489,7 +499,7 @@ const Attendance: React.FC = () => {
                   ))}
                   {groupedStudents.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-500">
+                      <td colSpan={12} className="p-8 text-center text-gray-500">
                         No attendance records for {selectedDate}.
                         {canMarkAttendance && (
                           <>

@@ -92,13 +92,12 @@ const LoginForm: React.FC = () => {
           {/* Left side - College Branding (hidden on mobile, shown on lg+) */}
           <div className="hidden lg:block text-left space-y-8">
             <div className="space-y-6">
-              <div className="relative">
+              <div>
                 <img
-                  src="V Connect V01.png"
-                  alt="VIET Logo"
-                  className="h-24 w-auto drop-shadow-2xl animate-pulse-glow"
+                  src="/vconnectLogo.png"
+                  alt="V Connect Logo"
+                  className="h-40 w-auto max-w-full"
                 />
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-college-gold rounded-full animate-pulse"></div>
               </div>
               
               <div className="space-y-4">
@@ -138,15 +137,7 @@ const LoginForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Mobile-only compact branding above login */}
-          <div className="flex flex-col items-center lg:hidden mb-2">
-            <img
-              src="V Connect V01.png"
-              alt="V-Connect Logo"
-              className="h-16 w-auto drop-shadow-2xl mb-3"
-            />
-            <h1 className="text-3xl font-black text-white tracking-tight">V-Connect</h1>
-          </div>
+          {/* Mobile-only: logo moved inside login card (see CardContent) */}
 
           {/* Right side - Login Form */}
           <div className="w-full max-w-md mx-auto">
@@ -160,9 +151,16 @@ const LoginForm: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Student Icon */}
+                {/* Logo on mobile (replaces icon); Student icon on desktop */}
                 <div className="flex justify-center mb-6">
-                  <div className="relative">
+                  <div className="lg:hidden flex justify-center">
+                    <img
+                      src="/vconnectLogo.png"
+                      alt="V Connect Logo"
+                      className="h-32 w-auto max-w-full"
+                    />
+                  </div>
+                  <div className="hidden lg:block relative">
                     <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
                       <User className="h-10 w-10 text-white" />
                     </div>

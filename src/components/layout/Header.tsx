@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, User, LogOut, Settings, Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSidebar } from './Sidebar';
@@ -15,12 +15,23 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import ProfileModal from '../profile/ProfileModal';
 import NotificationModal from '../notifications/NotificationModal';
+import { databaseService } from '../../services/databaseService';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { toggle } = useSidebar();
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    databaseService.getUnreadNotificationCount(user.id).then(setUnreadCount);
+  }, [user?.id]);
+
+  const refreshUnreadCount = () => {
+    if (user?.id) databaseService.getUnreadNotificationCount(user.id).then(setUnreadCount);
+  };
 
   const handleProfileClick = () => {
     setShowProfile(true);
@@ -36,7 +47,7 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="bg-white shadow-sm border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
+      <header className="shrink-0 bg-white shadow-sm border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
             <button
@@ -65,9 +76,11 @@ const Header: React.FC = () => {
               onClick={handleNotificationClick}
             >
               <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Button>
 
             <DropdownMenu>
@@ -120,7 +133,11 @@ const Header: React.FC = () => {
 
       {showNotifications && (
         <NotificationModal
-          onClose={() => setShowNotifications(false)}
+          onClose={() => {
+            setShowNotifications(false);
+            refreshUnreadCount();
+          }}
+          onRequestsUpdated={refreshUnreadCount}
         />
       )}
     </>

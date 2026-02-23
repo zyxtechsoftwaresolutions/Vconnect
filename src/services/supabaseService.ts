@@ -7,9 +7,7 @@ export class SupabaseService {
   // Student operations
   async getAllStudents(): Promise<StudentData[]> {
     try {
-      console.log('🔍 Fetching all students from database...')
       const students = await databaseService.getAllStudents()
-      console.log(`✅ Found ${students?.length || 0} students in database`)
       return students as StudentData[] || []
     } catch (error) {
       console.error('❌ Error in getAllStudents:', error)
@@ -49,13 +47,7 @@ export class SupabaseService {
 
   async getStudentByUserId(userId: string): Promise<StudentData | null> {
     try {
-      console.log(`🔍 Fetching student by user_id: ${userId}`)
       const student = await databaseService.getStudentByUserId(userId)
-      if (student) {
-        console.log(`✅ Found student: ${student.name || 'Unknown'}`)
-      } else {
-        console.log(`❌ No student found for user_id: ${userId}`)
-      }
       return student as StudentData | null
     } catch (error) {
       console.error('❌ Error in getStudentByUserId:', error)
@@ -65,13 +57,7 @@ export class SupabaseService {
 
   async getStudentByEmail(email: string): Promise<StudentData | null> {
     try {
-      console.log(`🔍 Fetching student by email: ${email}`)
       const student = await databaseService.getStudentByEmail(email)
-      if (student) {
-        console.log(`✅ Found student: ${student.name || 'Unknown'}`)
-      } else {
-        console.log(`❌ No student found for email: ${email}`)
-      }
       return student as StudentData | null
     } catch (error) {
       console.error('❌ Error in getStudentByEmail:', error)
@@ -81,18 +67,7 @@ export class SupabaseService {
 
   async addStudent(studentData: Omit<StudentData, 'id' | 'createdAt' | 'updatedAt'>): Promise<StudentData | null> {
     try {
-      console.log('📝 addStudent called with:', { 
-        userId: studentData.userId, 
-        name: studentData.name, 
-        email: studentData.email,
-        registerId: studentData.registerId 
-      });
       const student = await databaseService.createStudent(studentData as any);
-      if (student) {
-        console.log('✅ Student created successfully:', student.id);
-      } else {
-        console.log('❌ Student creation returned null');
-      }
       return student as StudentData | null;
     } catch (error) {
       console.error('❌ Error in addStudent:', error);
@@ -102,9 +77,7 @@ export class SupabaseService {
 
   async updateStudent(studentId: string, updates: Partial<StudentData>): Promise<StudentData | null> {
     try {
-      console.log('🔧 updateStudent called with:', { studentId, updates });
       const student = await databaseService.updateStudent(studentId, updates as any)
-      console.log('✅ Student updated successfully:', student);
       return student as StudentData | null
     } catch (error) {
       console.error('Error in updateStudent:', error)
@@ -142,9 +115,7 @@ export class SupabaseService {
 
   async createUser(userData: { id: string; email: string; name: string; role: string; department?: string; profile_picture?: string; is_active?: boolean }) {
     try {
-      console.log('SupabaseService: Creating user with data:', userData);
       const user = await databaseService.createUser(userData as any)
-      console.log('SupabaseService: User created successfully:', user);
       return user
     } catch (error) {
       console.error('SupabaseService: Error in createUser:', error)
@@ -178,10 +149,8 @@ export const supabaseService = new SupabaseService()
 // Test database connection
 export const testDatabaseConnection = async () => {
   try {
-    console.log('Testing database connection...');
-    
     // Try a simple query to check if tables exist
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
       .select('id')
       .limit(1);
@@ -191,13 +160,11 @@ export const testDatabaseConnection = async () => {
       
       // If it's a permission error, try to disable RLS
       if (error.code === '42501') {
-        console.log('Permission error detected. This is likely an RLS issue.');
         return false;
       }
       return false;
     }
     
-    console.log('Database connection test successful:', data);
     return true;
   } catch (error) {
     console.error('Database connection test error:', error);

@@ -276,6 +276,75 @@ export class DatabaseService {
     }
   }
 
+  async createNotification(params: {
+    userId: string;
+    title: string;
+    message: string;
+    type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+    actionUrl?: string;
+  }): Promise<boolean> {
+    try {
+      const { error } = await db.from('notifications').insert([{
+        user_id: params.userId,
+        title: params.title,
+        message: params.message,
+        type: params.type,
+        ...(params.actionUrl && { action_url: params.actionUrl }),
+      }]);
+      return !error;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      return false;
+    }
+  }
+
+  async getNotificationsByUser(userId: string, limit = 50): Promise<{ id: string; title: string; message: string; type: string; is_read: boolean; created_at: string; action_url?: string }[]> {
+    try {
+      const { data, error } = await db
+        .from('notifications')
+        .select('id, title, message, type, is_read, created_at, action_url')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+  }
+
+  async markNotificationRead(notificationId: string): Promise<boolean> {
+    try {
+      const { error } = await db.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notificationId);
+      return !error;
+    } catch (error) {
+      console.error('Error marking notification read:', error);
+      return false;
+    }
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<boolean> {
+    try {
+      const { error } = await db.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('user_id', userId);
+      return !error;
+    } catch (error) {
+      console.error('Error marking all notifications read:', error);
+      return false;
+    }
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    try {
+      const { count, error } = await db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
+      if (error) throw error;
+      return count ?? 0;
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      return 0;
+    }
+  }
+
   async createLeaveRequest(params: {
     studentId: string;
     mentorId: string;
@@ -299,6 +368,16 @@ export class DatabaseService {
         .select('id')
         .single();
       if (error) throw error;
+      if (data?.id) {
+        const { data: studentRow } = await db.from('students').select('name').eq('id', params.studentId).single();
+        const studentName = (studentRow as any)?.name || 'A student';
+        this.createNotification({
+          userId: params.mentorId,
+          title: 'Leave request',
+          message: `${studentName} applied for ${params.type} leave (${params.startDate} to ${params.endDate}). Reason: ${params.reason.slice(0, 80)}${params.reason.length > 80 ? '...' : ''}`,
+          type: 'INFO',
+        });
+      }
       return data ? { id: data.id } : null;
     } catch (error) {
       console.error('Error creating leave request:', error);
@@ -327,10 +406,140 @@ export class DatabaseService {
         .select('id')
         .single();
       if (error) throw error;
+      if (data?.id) {
+        const { data: studentRow } = await db.from('students').select('name').eq('id', params.studentId).single();
+        const studentName = (studentRow as any)?.name || 'A student';
+        this.createNotification({
+          userId: params.mentorId,
+          title: 'Permission request',
+          message: `${studentName} requested ${params.type} permission for ${params.requestDate}. Reason: ${params.reason.slice(0, 80)}${params.reason.length > 80 ? '...' : ''}`,
+          type: 'INFO',
+        });
+      }
       return data ? { id: data.id } : null;
     } catch (error) {
       console.error('Error creating permission request:', error);
       return null;
+    }
+  }
+
+  async updateLeaveRequestStatus(id: string, status: 'APPROVED' | 'REJECTED', remarks?: string): Promise<boolean> {
+    try {
+      const { data: req, error: fetchErr } = await db.from('leave_requests').select('student_id').eq('id', id).single();
+      if (fetchErr || !req) return false;
+      const { error: updateErr } = await db.from('leave_requests').update({
+        status,
+        processed_at: new Date().toISOString(),
+        ...(remarks != null && { remarks }),
+      }).eq('id', id);
+      if (updateErr) return false;
+      const { data: studentRow } = await db.from('students').select('user_id').eq('id', (req as any).student_id).single();
+      const studentUserId = (studentRow as any)?.user_id;
+      if (studentUserId) {
+        this.createNotification({
+          userId: studentUserId,
+          title: status === 'APPROVED' ? 'Leave granted' : 'Leave rejected',
+          message: status === 'APPROVED' ? 'Your leave request has been approved by your mentor.' : (remarks || 'Your leave request has been rejected by your mentor.'),
+          type: status === 'APPROVED' ? 'SUCCESS' : 'WARNING',
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating leave request:', error);
+      return false;
+    }
+  }
+
+  async updatePermissionRequestStatus(id: string, status: 'APPROVED' | 'REJECTED', remarks?: string): Promise<boolean> {
+    try {
+      const { data: req, error: fetchErr } = await db.from('permission_requests').select('student_id').eq('id', id).single();
+      if (fetchErr || !req) return false;
+      const { error: updateErr } = await db.from('permission_requests').update({
+        status,
+        processed_at: new Date().toISOString(),
+        ...(remarks != null && { remarks }),
+      }).eq('id', id);
+      if (updateErr) return false;
+      const { data: studentRow } = await db.from('students').select('user_id').eq('id', (req as any).student_id).single();
+      const studentUserId = (studentRow as any)?.user_id;
+      if (studentUserId) {
+        this.createNotification({
+          userId: studentUserId,
+          title: status === 'APPROVED' ? 'Permission granted' : 'Permission rejected',
+          message: status === 'APPROVED' ? 'Your permission request has been approved by your mentor.' : (remarks || 'Your permission request has been rejected by your mentor.'),
+          type: status === 'APPROVED' ? 'SUCCESS' : 'WARNING',
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating permission request:', error);
+      return false;
+    }
+  }
+
+  async getLeaveRequestsByMentor(mentorUserId: string): Promise<any[]> {
+    try {
+      const { data, error } = await db
+        .from('leave_requests')
+        .select('*, students!inner(name, register_id)')
+        .eq('mentor_id', mentorUserId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map((r: any) => ({ ...r, studentName: r.students?.name, registerId: r.students?.register_id }));
+    } catch (error) {
+      console.error('Error fetching leave requests by mentor:', error);
+      return [];
+    }
+  }
+
+  async getPermissionRequestsByMentor(mentorUserId: string): Promise<any[]> {
+    try {
+      const { data, error } = await db
+        .from('permission_requests')
+        .select('*, students!inner(name, register_id)')
+        .eq('mentor_id', mentorUserId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map((r: any) => ({ ...r, studentName: r.students?.name, registerId: r.students?.register_id }));
+    } catch (error) {
+      console.error('Error fetching permission requests by mentor:', error);
+      return [];
+    }
+  }
+
+  async getLeaveRequestsByStudent(studentId: string): Promise<any[]> {
+    try {
+      const { data, error } = await db.from('leave_requests').select('*').eq('student_id', studentId).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching leave requests by student:', error);
+      return [];
+    }
+  }
+
+  async getPermissionRequestsByStudent(studentId: string): Promise<any[]> {
+    try {
+      const { data, error } = await db.from('permission_requests').select('*').eq('student_id', studentId).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching permission requests by student:', error);
+      return [];
+    }
+  }
+
+  async getAttendanceByStudent(studentId: string, fromDate?: string, toDate?: string): Promise<any[]> {
+    try {
+      let query = db.from('attendance_records').select('*').eq('student_id', studentId).order('date', { ascending: false }).order('period', { ascending: true });
+      if (fromDate) query = query.gte('date', fromDate);
+      if (toDate) query = query.lte('date', toDate);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching attendance by student:', error);
+      return [];
     }
   }
 
@@ -635,24 +844,15 @@ export class DatabaseService {
 
   async getStudentByUserId(userId: string): Promise<any> {
     try {
-      console.log('🔍 databaseService.getStudentByUserId - Querying database for user_id:', userId);
-      
+
       const { data, error } = await db
         .from('students')
         .select('*')
         .eq('user_id', userId)
         .single()
       
-      console.log('📊 databaseService.getStudentByUserId - Query result:', { 
-        hasData: !!data, 
-        hasError: !!error,
-        errorCode: error?.code,
-        errorMessage: error?.message 
-      });
-      
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log('ℹ️ No student found (PGRST116 - no rows returned)');
           return null;
         }
         console.error('❌ Database error in getStudentByUserId:', error);
@@ -661,7 +861,6 @@ export class DatabaseService {
       
       // Map database response back to frontend format
       if (data) {
-        console.log('✅ Found student data, mapping fields...');
         const mappedData: any = {
           ...data,
           registerId: data.register_id,
@@ -694,11 +893,9 @@ export class DatabaseService {
         if (data.mentor_id) {
           mappedData.mentor = await this.getMentorProfileForStudent(data.mentor_id);
         }
-        console.log('✅ Mapped student data:', mappedData.id);
         return mappedData;
       }
       
-      console.log('ℹ️ No data returned from query');
       return data;
     } catch (error) {
       console.error('❌ Exception in getStudentByUserId:', error);
@@ -758,12 +955,7 @@ export class DatabaseService {
 
   async createStudent(studentData: any): Promise<any> {
     try {
-      console.log('🔧 createStudent called with:', { 
-        userId: studentData.userId, 
-        name: studentData.name, 
-        email: studentData.email 
-      });
-      
+
       const emptyToNull = (v: any) => (v === '' ? null : v);
       const dbData: any = {};
       
@@ -807,8 +999,6 @@ export class DatabaseService {
       if (studentData.achievements !== undefined) dbData.achievements = studentData.achievements;
       if (studentData.supplies !== undefined) dbData.supplies = studentData.supplies;
 
-      console.log('📤 Inserting student data:', dbData);
-      
       const { data, error } = await db
         .from('students')
         .insert([dbData])
@@ -819,8 +1009,6 @@ export class DatabaseService {
         console.error('❌ Database error creating student:', error);
         throw error;
       }
-      
-      console.log('✅ Student inserted successfully:', data?.id);
       
       // Map database response back to frontend format
       if (data) {

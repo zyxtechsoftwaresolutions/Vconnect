@@ -32,6 +32,8 @@ const FacultyAssignments = lazy(() => import('./pages/FacultyAssignments'));
 const Departments = lazy(() => import('./pages/Departments'));
 const DigitalIDCard = lazy(() => import('./pages/DigitalIDCard'));
 const IDCardPublicView = lazy(() => import('./pages/IDCardPublicView'));
+const MyLeavePermissionLogs = lazy(() => import('./pages/MyLeavePermissionLogs'));
+const MyAttendance = lazy(() => import('./pages/MyAttendance'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,15 +62,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
         <Header />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">
-            {children}
+          <main className="flex-1 min-w-0 flex flex-col overflow-auto">
+            <div className="flex-1 p-3 sm:p-4 lg:p-6">
+              {children}
+            </div>
+            <Footer />
           </main>
         </div>
-        <Footer />
       </div>
     </SidebarProvider>
   );
@@ -191,6 +195,16 @@ const App: React.FC = () => {
                 <Route path="/id-card" element={
                   <ProtectedRoute>
                     <DigitalIDCard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/my-leave-permission" element={
+                  <ProtectedRoute allowedRoles={['STUDENT', 'CR']}>
+                    <MyLeavePermissionLogs />
+                  </ProtectedRoute>
+                } />
+                <Route path="/my-attendance" element={
+                  <ProtectedRoute allowedRoles={['STUDENT', 'CR']}>
+                    <MyAttendance />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -21,6 +21,11 @@ interface CardData {
   employeeId?: string;
   designation?: string;
   isActive?: boolean;
+  /** e.g. "B.Tech ( CSE - A )" */
+  courseStream?: string;
+  dateOfBirth?: string;
+  aadharNo?: string;
+  address?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -78,7 +83,7 @@ const IDCardPublicView: React.FC = () => {
       if (isStudent) {
         const { data: sRec } = await db
           .from('students')
-          .select('register_id, class, blood_group, phone_number, department')
+          .select('register_id, class, blood_group, phone_number, department, regulation, date_of_birth, aadhar_id, address')
           .eq('user_id', uid)
           .maybeSingle();
         if (sRec) {
@@ -87,6 +92,11 @@ const IDCardPublicView: React.FC = () => {
           card.bloodGroup = sRec.blood_group;
           card.phone = sRec.phone_number;
           if (sRec.department) card.department = sRec.department;
+          card.dateOfBirth = sRec.date_of_birth;
+          card.aadharNo = sRec.aadhar_id;
+          card.address = sRec.address;
+          const cls = (sRec.class || sRec.department || '').toString().replace(/-/g, ' - ');
+          card.courseStream = cls ? `${(sRec.regulation || 'B.Tech')} ( ${cls} )` : '';
         }
       } else {
         const { data: fRec } = await db
@@ -225,12 +235,16 @@ const IDCardPublicView: React.FC = () => {
 
           {/* Details */}
           <div style={styles.detailsGrid}>
+            {cardData.courseStream && <Row label="Course" value={cardData.courseStream} />}
             <Row label="Department" value={cardData.department} />
             {isStudent && cardData.studentClass && <Row label="Class / Section" value={cardData.studentClass} />}
             {!isStudent && cardData.designation && <Row label="Designation" value={cardData.designation} />}
+            {cardData.dateOfBirth && <Row label="DOB" value={cardData.dateOfBirth} />}
+            {cardData.aadharNo && <Row label="Aadhar No" value={cardData.aadharNo} />}
+            {cardData.address && <Row label="Address" value={cardData.address} />}
+            {cardData.phone && <Row label="Ph No" value={cardData.phone} />}
             {cardData.bloodGroup && <Row label="Blood Group" value={cardData.bloodGroup} />}
             <Row label="Email" value={cardData.email} />
-            {cardData.phone && <Row label="Phone" value={cardData.phone} />}
           </div>
 
           {/* Small QR for re-scan */}

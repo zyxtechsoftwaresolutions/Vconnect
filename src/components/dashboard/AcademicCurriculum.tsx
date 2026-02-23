@@ -146,7 +146,6 @@ const AcademicCurriculum: React.FC<AcademicCurriculumProps> = ({ userRole, userD
     
     if (action === 'download' || isFirstTime) {
       // Simulate download
-      console.log(`Downloading ${document.fileName}`);
       // Update download count and last accessed
       setDocuments(prev => prev.map(doc => 
         doc.id === document.id 
@@ -166,7 +165,6 @@ const AcademicCurriculum: React.FC<AcademicCurriculumProps> = ({ userRole, userD
       URL.revokeObjectURL(url);
     } else {
       // Open document directly (simulate PDF viewer)
-      console.log(`Opening ${document.fileName} directly`);
       // Update last accessed
       setDocuments(prev => prev.map(doc => 
         doc.id === document.id 

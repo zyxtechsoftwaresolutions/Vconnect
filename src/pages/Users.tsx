@@ -73,14 +73,12 @@ const Users: React.FC = () => {
   const handleAddUser = async (userData: any) => {
     try {
       setError('');
-      console.log('🚀 Creating user with full authentication:', userData);
 
       const password = userData.useDefaultPassword ? 'user123' : (userData.password || 'user123');
       let userId: string | null = null;
       let authUserCreated = false;
 
       // Step 1: Check if user already exists in public.users
-      console.log('🔍 Checking if user exists in public.users...');
       let existingDbUser = null;
       try {
         const { data } = await db.from('users').select('id, email').eq('email', userData.email).maybeSingle();
@@ -90,13 +88,11 @@ const Users: React.FC = () => {
       }
       
       if (existingDbUser) {
-        console.log('⚠️ User already exists in public.users, will update after auth creation');
+        // User already exists, will update after auth creation
       }
 
       // Step 2: Create user in auth.users using Edge Function (server-side)
       try {
-        console.log('📝 Creating user in auth.users via Edge Function...');
-        
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
         
@@ -131,8 +127,7 @@ const Users: React.FC = () => {
 
         userId = result.userId;
         authUserCreated = result.authUserCreated;
-        console.log('✅ Auth user created successfully via Edge Function with ID:', userId);
-        
+
       } catch (authErr: any) {
         console.error('❌ Error with auth user creation:', authErr);
         
@@ -157,10 +152,8 @@ const Users: React.FC = () => {
 
       // Step 3: If user exists in public.users, delete it first (to recreate with correct ID)
       if (existingDbUser && userId) {
-        console.log('🗑️ Removing existing user from public.users to recreate with correct ID...');
         try {
           await db.from('users').delete().eq('email', userData.email);
-          console.log('✅ Existing user removed');
         } catch (deleteError: any) {
           console.warn('⚠️ Could not delete existing user:', deleteError);
         }
@@ -168,8 +161,7 @@ const Users: React.FC = () => {
 
       // Step 4: Create/update user in public.users with the ID from auth.users
       if (userId) {
-        console.log('📝 Creating user in public.users with auth ID:', userId);
-        
+
         const { data: createdUser, error: dbError } = await db
           .from('users')
           .upsert({
@@ -192,8 +184,6 @@ const Users: React.FC = () => {
           setError(`Failed to create user in database: ${dbError.message}`);
           return;
         }
-
-        console.log('✅ User created in public.users successfully!');
 
         // Step 5: Create student record if role is STUDENT
         if (userData.role === 'STUDENT') {
@@ -235,7 +225,6 @@ const Users: React.FC = () => {
               attendance_records: [],
               fee_records: []
             }]);
-            console.log('✅ Student record created successfully');
           } catch (studentError: any) {
             console.error('⚠️ Failed to create student record:', studentError);
             // Don't fail the entire operation if student record creation fails
@@ -246,8 +235,7 @@ const Users: React.FC = () => {
         if (FACULTY_ROLES.includes(userData.role)) {
           try {
             const ok = await databaseService.createFacultyRecordIfNeeded(userId, userData.department || 'CSE');
-            if (ok) console.log('✅ Faculty record created in faculty table');
-            else console.warn('⚠️ Faculty record not created (may already exist)');
+            if (!ok) console.warn('⚠️ Faculty record not created (may already exist)');
           } catch (facultyError: any) {
             console.error('⚠️ Failed to create faculty record:', facultyError);
           }
@@ -271,7 +259,6 @@ const Users: React.FC = () => {
       setError('');
 
       // For database users, proceed with database update
-      console.log('🔄 Updating database user...');
 
       // If password was updated, we need to handle it specially
       if (userData.updatePassword) {
@@ -313,7 +300,6 @@ const Users: React.FC = () => {
         } : u));
         
         setEditingUser(null);
-        console.log('User updated successfully:', updatedUser);
         
         // Show success message about password update
         alert(`User updated successfully! ${userData.useDefaultPassword ? 'Password has been reset to default (user123).' : 'Password has been updated with the new value.'}`);
@@ -356,7 +342,6 @@ const Users: React.FC = () => {
         } : u));
         
         setEditingUser(null);
-        console.log('User updated successfully:', updatedUser);
       }
     } catch (error) {
       console.error('Error updating user:', error);
@@ -377,7 +362,6 @@ const Users: React.FC = () => {
           return;
         }
         setUsers(users.filter(u => u.id !== userId));
-        console.log('User deleted:', userId);
       });
   };
 

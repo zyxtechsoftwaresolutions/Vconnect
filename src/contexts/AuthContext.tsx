@@ -14,8 +14,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PROFILE_FETCH_MS = 4000;
-const SESSION_CHECK_SAFETY_MS = 6000;
+const PROFILE_FETCH_MS = 2000;
+const SESSION_CHECK_SAFETY_MS = 2500;
 const PROFILE_CACHE_KEY = 'viet-connect-profile-cache';
 
 function userFromProfile(profile: any): User {
@@ -69,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		try { return !sessionStorage.getItem(PROFILE_CACHE_KEY); } catch { return true; }
 	});
 	const isLoggingInRef = useRef(false);
+	const lastAccessTokenRef = useRef<string | null>(null);
 
 	const setUserAndCache = (u: User | null) => {
 		setUser(u);
@@ -104,25 +105,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		let isMounted = true;
 		let safetyTimeoutId: NodeJS.Timeout;
 		let subscription: { unsubscribe: () => void } | undefined;
+		const hasCachedUser = !!sessionStorage.getItem(PROFILE_CACHE_KEY);
 
-		const checkSession = async () => {
+		const checkSession = async (background = false) => {
 			try {
 				const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 				if (!isMounted) return;
 				if (sessionError) {
-					setLoading(false);
+					if (!background) setLoading(false);
 					return;
 				}
 				if (session?.user) {
+					lastAccessTokenRef.current = session.access_token ?? null;
+					// When we have cache and are just checking in background, skip slow profile fetch
+					if (background && hasCachedUser) return;
 					const u = await fetchProfileWithTimeout(session);
 					if (isMounted) setUserAndCache(u);
 				} else {
+					lastAccessTokenRef.current = null;
 					setUserAndCache(null);
 				}
 			} catch (_) {
 				// ignore
 			} finally {
-				if (isMounted) {
+				if (isMounted && !background) {
 					clearTimeout(safetyTimeoutId);
 					setLoading(false);
 				}
@@ -133,15 +139,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 			if (isMounted) setLoading(false);
 		}, SESSION_CHECK_SAFETY_MS);
 
-		checkSession();
+		// If we have cached user, show app immediately and check session in background
+		if (hasCachedUser) {
+			setLoading(false);
+			checkSession(true);
+		} else {
+			checkSession(false);
+		}
 
 		const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+			// Ignore tab-focus / token refresh: only react when session actually changed
+			const newToken = session?.access_token ?? null;
+			if (newToken && newToken === lastAccessTokenRef.current && event !== 'SIGNED_OUT') {
+				return;
+			}
+			lastAccessTokenRef.current = newToken;
+
 			if (event === 'SIGNED_OUT' || !session) {
 				setUserAndCache(null);
 				setLoading(false);
 				return;
 			}
-			if (event === 'TOKEN_REFRESHED') {
+			if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+				// Same user, no need to refetch or show loading
 				return;
 			}
 			if (event === 'SIGNED_IN' && session?.user) {

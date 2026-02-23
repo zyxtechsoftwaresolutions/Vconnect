@@ -114,7 +114,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
       const { data: authUsers, error: searchError } = await supabaseAdmin.auth.admin.listUsers();
       
       if (searchError) {
-        console.log('Failed to list auth users:', searchError);
         return null;
       }
       
@@ -125,37 +124,30 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
       
       return null;
     } catch (error) {
-      console.log('Error checking user in auth:', error);
       return null;
     }
   };
 
   const testAuthCapabilities = async () => {
     try {
-      console.log('Testing Supabase auth admin capabilities...');
-      
       // Test 1: List users
       const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      console.log('List users result:', { success: !listError, error: listError, count: authUsers?.users?.length || 0 });
       
       // Test 2: Get current user
       const { data: currentUser, error: currentError } = await supabaseAdmin.auth.getUser();
-      console.log('Current user result:', { success: !currentError, error: currentError, user: currentUser?.user?.email });
       
       // Test 3: Check if we have admin access
       if (authUsers?.users && authUsers.users.length > 0) {
         const firstUser = authUsers.users[0];
-        console.log('First auth user:', { id: firstUser.id, email: firstUser.email });
         
         // Try a simple update to test permissions
         try {
-          const { data: testUpdate, error: testError } = await supabaseAdmin.auth.admin.updateUserById(
+          await supabaseAdmin.auth.admin.updateUserById(
             firstUser.id,
             { user_metadata: { test: 'permission_test' } }
           );
-          console.log('Test update result:', { success: !testError, error: testError });
-        } catch (testError) {
-          console.log('Test update failed:', testError);
+        } catch {
+          // Permission test
         }
       }
       
@@ -166,8 +158,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
 
   const confirmUserEmail = async (userId: string) => {
     try {
-      console.log('📧 Confirming email for user:', userId);
-      
       const { data: confirmedUser, error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
         userId,
         {
@@ -176,48 +166,34 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
       );
 
       if (!confirmError && confirmedUser) {
-        console.log('✅ Email confirmed successfully');
         return true;
       } else {
-        console.log('❌ Email confirmation failed:', confirmError);
         return false;
       }
     } catch (error) {
-      console.log('❌ Email confirmation error:', error);
       return false;
     }
   };
 
   const testLoginWithNewPassword = async (email: string, password: string) => {
     try {
-      console.log('🧪 Testing login with new password...');
-      console.log('📧 Email:', email);
-      console.log('🔑 Password:', password);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) {
-        console.log('❌ Test login failed:', error.message);
         return false;
       }
       
       if (data.user) {
-        console.log('✅ Test login successful!');
-        console.log('👤 User ID:', data.user.id);
-        console.log('📧 User email:', data.user.email);
-        
         // Sign out immediately after test
         await supabase.auth.signOut();
-        console.log('🚪 Test user signed out');
         return true;
       }
       
       return false;
     } catch (error) {
-      console.log('❌ Test login error:', error);
       return false;
     }
   };
@@ -225,8 +201,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
   // Set password for existing HOD users
   const setHODPassword = async (email: string, password: string) => {
     try {
-      console.log('🔑 Setting password for HOD user:', email);
-      
       // Update password in database
       const { error: dbError } = await supabase
         .from('users')
@@ -237,8 +211,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
         .eq('email', email);
       
       if (!dbError) {
-        console.log('✅ HOD password set in database');
-        
         // Also create user in Supabase auth if not exists
         if (supabaseAdmin) {
           try {
@@ -254,22 +226,18 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
             });
             
             if (!authError) {
-              console.log('✅ HOD user created in Supabase auth');
-            } else {
-              console.log('⚠️ Could not create in auth (may already exist):', authError.message);
+              // HOD user created in Supabase auth
             }
-          } catch (authError) {
-            console.log('⚠️ Auth creation failed:', authError);
+          } catch {
+            // Auth creation failed (may already exist)
           }
         }
         
         return true;
       } else {
-        console.log('❌ Database update failed:', dbError);
         return false;
       }
     } catch (error) {
-      console.log('❌ Error setting HOD password:', error);
       return false;
     }
   };
@@ -277,8 +245,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
   // Create comprehensive sample data for presentation
   const createSampleDataForPresentation = async () => {
     try {
-      console.log('🚀 Creating comprehensive sample data for presentation...');
-      
       if (!supabaseAdmin) {
         console.error('❌ Admin client not available');
         return false;
@@ -291,8 +257,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
         { email: 'admin3@viet.edu.in', name: 'Admin 3', role: 'ADMIN', department: 'CSE', password: 'admin123' }
       ];
 
-      console.log(`📊 Creating ${sampleUsers.length} sample users...`);
-      
       for (const userData of sampleUsers) {
         try {
           // Create in Supabase auth
@@ -308,8 +272,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
           });
 
           if (!authError && authUser) {
-            console.log(`✅ Created auth user: ${userData.name} (${userData.role})`);
-            
             // Create in database users table
             const { error: dbError } = await supabase
               .from('users')
@@ -324,21 +286,12 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
                 created_at: new Date(),
                 updated_at: new Date()
               }]);
-            
-            if (!dbError) {
-              console.log(`✅ Created database user: ${userData.name}`);
-            } else {
-              console.log(`⚠️ Database user creation failed: ${userData.name}`);
-            }
-          } else {
-            console.log(`⚠️ Auth user creation failed: ${userData.name} - ${authError?.message}`);
           }
         } catch (error) {
-          console.log(`❌ Error creating user ${userData.name}:`, error);
+          // Skip failed user
         }
       }
 
-      console.log('✅ Sample data creation completed!');
       return true;
       
     } catch (error) {
@@ -352,9 +305,6 @@ const UserForm: React.FC<UserFormProps> = ({ onSubmit, onClose, editUser, userRo
       // IMPORTANT: Supabase blocks service role key usage in browser for security
       // We cannot create or update auth users from client-side code
       // Users must be created/updated via Supabase Dashboard
-      
-      console.log('⚠️ Password update from browser is not supported for security reasons.');
-      console.log('📝 User must be created/updated in Supabase Dashboard.');
       
       // Show clear instructions to user
       const finalPassword = userData.useDefaultPassword ? 'user123' : userData.password;

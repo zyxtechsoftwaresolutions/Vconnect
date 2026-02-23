@@ -92,14 +92,14 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({
     // Update in the unified service (persists changes)
     const result = updateStudent(updatedStudent.id, updatedStudent);
     if (result) {
-      console.log('✅ Student updated in unified service:', result.name);
+      // Update succeeded
     }
     
     // Notify all components about the student update
     try {
       notifyStudentUpdates([updatedStudent]);
     } catch (e) {
-      console.log('Global notification failed:', e);
+      console.error('Global notification failed:', e);
     }
     
     // Call the parent's onSave function
