@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -61,12 +61,15 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ children }) =
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" aria-describedby="forgot-password-desc">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Mail className="h-5 w-5" />
             <span>Reset Password</span>
           </DialogTitle>
+          <DialogDescription id="forgot-password-desc">
+            Enter your email to receive a link to reset your password.
+          </DialogDescription>
         </DialogHeader>
 
         {!success ? (

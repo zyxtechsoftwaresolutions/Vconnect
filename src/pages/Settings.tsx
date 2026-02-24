@@ -6,7 +6,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Switch } from '../components/ui/switch';
-import { Dialog, DialogContent, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../hooks/use-toast';
@@ -954,7 +954,13 @@ const Settings: React.FC = () => {
                       <span>Change Password</span>
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
+                  <DialogContent className="sm:max-w-[500px]" aria-describedby="password-change-desc">
+                    <DialogHeader>
+                      <DialogTitle>Change Password</DialogTitle>
+                      <DialogDescription id="password-change-desc">
+                        Update your account password. You will be signed out and must log in again with your new password.
+                      </DialogDescription>
+                    </DialogHeader>
                     <PasswordChange onClose={() => setShowPasswordChange(false)} />
                   </DialogContent>
                 </Dialog>
@@ -966,7 +972,13 @@ const Settings: React.FC = () => {
                       <span>Setup 2FA</span>
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto" aria-describedby="2fa-desc">
+                    <DialogHeader>
+                      <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
+                      <DialogDescription id="2fa-desc">
+                        Add an extra layer of security to your account with two-factor authentication.
+                      </DialogDescription>
+                    </DialogHeader>
                     <TwoFactorAuth onClose={() => setShow2FA(false)} />
                   </DialogContent>
                 </Dialog>

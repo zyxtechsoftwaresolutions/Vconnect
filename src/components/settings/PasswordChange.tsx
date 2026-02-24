@@ -4,8 +4,10 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
-import { Key, Eye, EyeOff, Mail } from 'lucide-react';
+import { Key, Eye, EyeOff, Mail, Loader2 } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface PasswordChangeProps {
   onClose: () => void;
@@ -13,6 +15,8 @@ interface PasswordChangeProps {
 
 const PasswordChange: React.FC<PasswordChangeProps> = ({ onClose }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -34,7 +38,7 @@ const PasswordChange: React.FC<PasswordChangeProps> = ({ onClose }) => {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!formData.currentPassword) {
       toast({
         title: "Error",
@@ -62,12 +66,65 @@ const PasswordChange: React.FC<PasswordChangeProps> = ({ onClose }) => {
       return;
     }
 
-    // Simulate password change
-    toast({
-      title: "Password Changed",
-      description: "Your password has been successfully updated.",
-    });
-    onClose();
+    if (!user?.email) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to change your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Verify current password by re-authenticating
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: formData.currentPassword,
+      });
+      if (signInError) {
+        toast({
+          title: "Error",
+          description: "Current password is incorrect.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Update to new password in Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: formData.newPassword,
+      });
+      if (updateError) {
+        toast({
+          title: "Error",
+          description: updateError.message || "Failed to update password.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Sign out so the user must log in again with the new password.
+      // This avoids stale session/cache issues and ensures the new password is used.
+      await supabase.auth.signOut();
+
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated. Please log in again with your new password.",
+      });
+      setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      onClose();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -239,10 +296,11 @@ const PasswordChange: React.FC<PasswordChangeProps> = ({ onClose }) => {
         </Alert>
 
         <div className="flex space-x-2">
-          <Button onClick={handlePasswordChange}>
+          <Button onClick={handlePasswordChange} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Change Password
           </Button>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
         </div>

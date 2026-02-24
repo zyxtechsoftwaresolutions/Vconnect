@@ -33,10 +33,10 @@ const LoginForm: React.FC = () => {
       if (success) {
         navigate('/dashboard');
       } else {
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError('Login failed. Please check your email and password and try again.');
       }
-    } catch (error) {
-      setError('An error occurred during login. Please try again.');
+    } catch {
+      setError('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
