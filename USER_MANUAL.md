@@ -183,12 +183,17 @@
 ### **6.1 Book Catalog Management**
 1. **Add Books**:
    - **Basic Info**: Title, author, ISBN, category
+   - **Location / Shelf**: Where the book is kept (e.g. Rack A-12, Section 3)—helps librarians find the book quickly
    - **Physical Details**: Total copies, available copies
    - **Classification**: Subject, department, level
-   - **Location**: Shelf number, section
 
-2. **Book Search**:
-   - **Search Options**: Title, author, ISBN, category
+2. **Add by barcode & shelf QR** (recommended for large libraries):
+   - Click **Add Book**, then **Scan book barcode** and scan the book’s barcode (e.g. ISBN on the back). The ISBN field is filled automatically.
+   - Then click **Scan shelf location** and scan the QR or barcode on the shelf where the book is placed. The location field is filled automatically.
+   - Fill in title, author, category and copies, then submit. Each shelf can have its own QR that encodes shelf number and optionally row/column (e.g. `SHELF:45:2:3` for Shelf 45, Row 2, Col 3).
+
+3. **Book Search**:
+   - **Search Options**: Title, author, ISBN, category, **or location/shelf**
    - **Advanced Filters**: Department, subject, availability
    - **Results**: Detailed book information
 

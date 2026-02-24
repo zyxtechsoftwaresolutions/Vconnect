@@ -17,6 +17,7 @@ import { useToast } from '../hooks/use-toast';
 import { databaseService } from '../services/databaseService';
 import { supabase, supabaseAdmin } from '../lib/supabase';
 import QRScannerModal from '../components/library/QRScannerModal';
+import BarcodeScannerModal, { parseShelfLocation } from '../components/library/BarcodeScannerModal';
 import StudentLibraryProfile from '../components/library/StudentLibraryProfile';
 
 const db = supabaseAdmin || supabase;
@@ -36,6 +37,7 @@ interface BookRecord {
   category: string;
   totalCopies: number;
   availableCopies: number;
+  place?: string;
 }
 
 interface BookIssue {
@@ -77,6 +79,11 @@ const Library: React.FC = () => {
   const [issueRegisterId, setIssueRegisterId] = useState('');
   const [issueStudentName, setIssueStudentName] = useState('');
 
+  // Add book: scan book barcode → ISBN, scan shelf QR → location
+  const [scanAddBookMode, setScanAddBookMode] = useState<'book' | 'shelf' | null>(null);
+  const [scannedIsbn, setScannedIsbn] = useState('');
+  const [scannedPlace, setScannedPlace] = useState('');
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -101,6 +108,7 @@ const Library: React.FC = () => {
         category: b.category,
         totalCopies: b.total_copies ?? b.totalCopies ?? 0,
         availableCopies: b.available_copies ?? b.availableCopies ?? 0,
+        place: b.place ?? b.place_location ?? '',
       }))
     );
   };
@@ -154,6 +162,7 @@ const Library: React.FC = () => {
       const { error } = await db.from('books').insert([{
         title: fd.get('title'), author: fd.get('author'), isbn: fd.get('isbn'),
         category: fd.get('category'), total_copies: copies, available_copies: copies, added_by: user?.id,
+        place: (fd.get('place') as string)?.trim() || null,
       }]);
       if (error) throw error;
       toast({ title: 'Book Added', description: `"${fd.get('title')}" added to library.` });
@@ -175,6 +184,7 @@ const Library: React.FC = () => {
         title: fd.get('title'), author: fd.get('author'), isbn: fd.get('isbn'),
         category: fd.get('category'), total_copies: newTotal,
         available_copies: Math.max(0, editingBook.availableCopies + diff),
+        place: (fd.get('place') as string)?.trim() || null,
       }).eq('id', editingBook.id);
       if (error) throw error;
       toast({ title: 'Book Updated' });
@@ -298,7 +308,8 @@ const Library: React.FC = () => {
   const filteredBooks = books.filter(b =>
     b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.isbn.includes(searchTerm)
+    b.isbn.includes(searchTerm) ||
+    (b.place && b.place.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -316,7 +327,7 @@ const Library: React.FC = () => {
           <Button variant="outline" onClick={() => { resetIssueForm(); setShowIssueBook(true); }}>
             <UserPlus className="h-4 w-4 mr-1" /> Issue Book
           </Button>
-          <Button onClick={() => setShowAddBook(true)}>
+          <Button onClick={() => { setScannedIsbn(''); setScannedPlace(''); setScanAddBookMode(null); setShowAddBook(true); }}>
             <Plus className="h-4 w-4 mr-1" /> Add Book
           </Button>
         </div>
@@ -362,7 +373,7 @@ const Library: React.FC = () => {
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by title, author, or ISBN..."
+              placeholder="Search by title, author, ISBN, or location..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-md"
@@ -383,6 +394,11 @@ const Library: React.FC = () => {
                         <h3 className="font-semibold text-sm truncate">{book.title}</h3>
                         <p className="text-xs text-gray-500">{book.author}</p>
                         <p className="text-[10px] text-gray-400 font-mono">ISBN: {book.isbn}</p>
+                        {book.place && (
+                          <p className="text-[10px] text-indigo-600 mt-0.5 flex items-center gap-0.5">
+                            <span className="font-medium">Location:</span> {book.place}
+                          </p>
+                        )}
                       </div>
                       <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{book.category}</Badge>
                     </div>
@@ -507,11 +523,59 @@ const Library: React.FC = () => {
 
       {/* ═══ Add Book Dialog ═══ */}
       <Dialog open={showAddBook} onOpenChange={setShowAddBook}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Add New Book</DialogTitle></DialogHeader>
-          <BookForm onSubmit={handleAddBook} onCancel={() => setShowAddBook(false)} />
+          <p className="text-sm text-gray-600">Scan the book barcode, then the shelf QR to auto-fill ISBN and location.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setScanAddBookMode('book')}
+            >
+              <ScanLine className="h-4 w-4 mr-1" /> Scan book barcode
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setScanAddBookMode('shelf')}
+            >
+              <QrCode className="h-4 w-4 mr-1" /> Scan shelf location
+            </Button>
+          </div>
+          {(scannedIsbn || scannedPlace) && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {scannedIsbn && <Badge variant="secondary">ISBN: {scannedIsbn}</Badge>}
+              {scannedPlace && <Badge variant="secondary">Location: {scannedPlace}</Badge>}
+            </div>
+          )}
+          <BookForm
+            key={`add-${scannedIsbn}-${scannedPlace}`}
+            onSubmit={handleAddBook}
+            onCancel={() => setShowAddBook(false)}
+            defaultIsbn={scannedIsbn}
+            defaultPlace={scannedPlace}
+          />
         </DialogContent>
       </Dialog>
+
+      <BarcodeScannerModal
+        open={scanAddBookMode === 'book'}
+        onClose={() => setScanAddBookMode(null)}
+        onScan={(text) => { setScannedIsbn(text); setScanAddBookMode(null); }}
+        title="Scan book barcode"
+        subtitle="Point camera at the book's barcode (e.g. ISBN on the back)"
+        manualPlaceholder="Paste ISBN or barcode"
+      />
+      <BarcodeScannerModal
+        open={scanAddBookMode === 'shelf'}
+        onClose={() => setScanAddBookMode(null)}
+        onScan={(text) => { setScannedPlace(parseShelfLocation(text)); setScanAddBookMode(null); }}
+        title="Scan shelf location"
+        subtitle="Point camera at the shelf's QR or barcode"
+        manualPlaceholder="e.g. SHELF:45:2:3 or Shelf 45, Row 2, Col 3"
+      />
 
       {/* ═══ Edit Book Dialog ═══ */}
       <Dialog open={!!editingBook} onOpenChange={() => setEditingBook(null)}>
@@ -581,7 +645,9 @@ const BookForm: React.FC<{
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   initial?: BookRecord;
-}> = ({ onSubmit, onCancel, initial }) => (
+  defaultIsbn?: string;
+  defaultPlace?: string;
+}> = ({ onSubmit, onCancel, initial, defaultIsbn, defaultPlace }) => (
   <form onSubmit={onSubmit} className="space-y-3">
     <div>
       <Label>Title</Label>
@@ -593,7 +659,12 @@ const BookForm: React.FC<{
     </div>
     <div>
       <Label>ISBN</Label>
-      <Input name="isbn" required defaultValue={initial?.isbn} placeholder="ISBN number" />
+      <Input
+        name="isbn"
+        required
+        defaultValue={defaultIsbn ?? initial?.isbn ?? ''}
+        placeholder="Scan barcode or enter ISBN"
+      />
     </div>
     <div>
       <Label>Category</Label>
@@ -603,6 +674,15 @@ const BookForm: React.FC<{
           {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+    <div>
+      <Label>Location / Shelf</Label>
+      <Input
+        name="place"
+        defaultValue={defaultPlace ?? initial?.place ?? ''}
+        placeholder="e.g., Rack A-12 or scan shelf QR"
+      />
+      <p className="text-xs text-gray-500 mt-0.5">Where the book is kept in the library (helps find it quickly)</p>
     </div>
     <div>
       <Label>Number of Copies</Label>
