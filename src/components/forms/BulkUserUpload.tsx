@@ -14,7 +14,9 @@ import {
   Loader2,
   Download,
   Users,
-  Trash2
+  Trash2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
 import { databaseService } from '../../services/databaseService';
@@ -55,6 +57,11 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [VALID_DEPARTMENTS, setValidDepartments] = useState<string[]>(FALLBACK_DEPARTMENTS);
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+  const [previewPage, setPreviewPage] = useState(1);
+  const [resultsPage, setResultsPage] = useState(1);
+
+  const PREVIEW_PAGE_SIZE = 10;
+  const RESULTS_PAGE_SIZE = 10;
 
   useEffect(() => {
     const loadData = async () => {
@@ -204,6 +211,7 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
     }
 
     setParsedUsers(parsed);
+    setPreviewPage(1);
     setStep('preview');
   };
 
@@ -363,6 +371,7 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
     }
 
     setIsProcessing(false);
+    setResultsPage(1);
     setStep('done');
     onComplete();
   };
@@ -494,6 +503,12 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
               </div>
 
               {/* Preview Table */}
+              {(() => {
+                const totalPages = Math.max(1, Math.ceil(parsedUsers.length / PREVIEW_PAGE_SIZE));
+                const start = (previewPage - 1) * PREVIEW_PAGE_SIZE;
+                const pageUsers = parsedUsers.slice(start, start + PREVIEW_PAGE_SIZE);
+                return (
+                  <>
               <div className="border rounded-lg overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
@@ -511,9 +526,11 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
                     </tr>
                   </thead>
                   <tbody>
-                    {parsedUsers.map((user, idx) => (
-                      <tr key={idx} className={`border-t ${user.status === 'error' || user.status === 'duplicate' ? 'bg-red-50' : ''}`}>
-                        <td className="p-3 text-gray-500">{idx + 1}</td>
+                    {pageUsers.map((user, idx) => {
+                      const globalIdx = start + idx;
+                      return (
+                      <tr key={globalIdx} className={`border-t ${user.status === 'error' || user.status === 'duplicate' ? 'bg-red-50' : ''}`}>
+                        <td className="p-3 text-gray-500">{globalIdx + 1}</td>
                         <td className="p-3 font-medium">{user.name || <span className="text-red-400">Missing</span>}</td>
                         <td className="p-3">{user.email || <span className="text-red-400">Missing</span>}</td>
                         <td className="p-3">
@@ -537,15 +554,43 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
                           )}
                         </td>
                         <td className="p-3">
-                          <Button variant="ghost" size="sm" onClick={() => removeUser(idx)}>
+                          <Button variant="ghost" size="sm" onClick={() => removeUser(globalIdx)}>
                             <Trash2 className="h-3 w-3 text-red-500" />
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <p className="text-sm text-gray-500">
+                    Page {previewPage} of {totalPages} ({parsedUsers.length} rows)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage(p => Math.max(1, p - 1))}
+                      disabled={previewPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))}
+                      disabled={previewPage >= totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+                  </>
+                );
+              })()}
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t">
@@ -610,6 +655,13 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
               </div>
 
               {/* Results Table */}
+              {(() => {
+                const resultsList = parsedUsers.filter(u => u.status === 'created' || u.status === 'failed');
+                const totalResultPages = Math.max(1, Math.ceil(resultsList.length / RESULTS_PAGE_SIZE));
+                const resultStart = (resultsPage - 1) * RESULTS_PAGE_SIZE;
+                const resultPageItems = resultsList.slice(resultStart, resultStart + RESULTS_PAGE_SIZE);
+                return (
+                  <>
               <div className="border rounded-lg overflow-x-auto max-h-72 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
@@ -621,8 +673,8 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
                     </tr>
                   </thead>
                   <tbody>
-                    {parsedUsers.filter(u => u.status === 'created' || u.status === 'failed').map((user, idx) => (
-                      <tr key={idx} className={`border-t ${user.status === 'failed' ? 'bg-red-50' : 'bg-green-50'}`}>
+                    {resultPageItems.map((user, idx) => (
+                      <tr key={resultStart + idx} className={`border-t ${user.status === 'failed' ? 'bg-red-50' : 'bg-green-50'}`}>
                         <td className="p-3 font-medium">{user.name}</td>
                         <td className="p-3">{user.email}</td>
                         <td className="p-3">{user.role}</td>
@@ -642,6 +694,34 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
                   </tbody>
                 </table>
               </div>
+              {totalResultPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <p className="text-sm text-gray-500">
+                    Page {resultsPage} of {totalResultPages} ({resultsList.length} results)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResultsPage(p => Math.max(1, p - 1))}
+                      disabled={resultsPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResultsPage(p => Math.min(totalResultPages, p + 1))}
+                      disabled={resultsPage >= totalResultPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+                  </>
+                );
+              })()}
 
               <div className="flex justify-end pt-4 border-t">
                 <Button onClick={onClose}>

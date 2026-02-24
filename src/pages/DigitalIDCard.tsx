@@ -269,7 +269,12 @@ body{font-family:'Inter',sans-serif;background:#fff;display:flex;flex-direction:
             <div
               id="id-card-front"
               className="absolute inset-0 rounded-2xl overflow-hidden shadow-xl"
-              style={{ backfaceVisibility: 'hidden' }}
+              style={{
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(0deg)',
+                zIndex: 1,
+              }}
             >
               <div className="h-full flex flex-col" style={{ background: 'linear-gradient(180deg, #1a237e 0%, #283593 45%, #f5f5f5 45%)' }}>
                 {/* Top pattern stripe */}
@@ -384,7 +389,12 @@ body{font-family:'Inter',sans-serif;background:#fff;display:flex;flex-direction:
             <div
               id="id-card-back"
               className="absolute inset-0 rounded-2xl overflow-hidden shadow-xl"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+              style={{
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+                zIndex: 2,
+              }}
             >
               <div className="h-full flex flex-col" style={{ background: 'linear-gradient(180deg, #1a237e 0%, #283593 20%, #f5f5f5 20%)' }}>
                 <div className="h-1" style={{ background: 'linear-gradient(90deg, #c5a15a, #e6c95a, #c5a15a)' }} />
