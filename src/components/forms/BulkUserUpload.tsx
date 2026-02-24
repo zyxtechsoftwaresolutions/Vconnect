@@ -422,10 +422,13 @@ const BulkUserUpload: React.FC<BulkUserUploadProps> = ({ onClose, onComplete, us
                 </div>
                 <div>
                   <Label>Default Class (optional)</Label>
-                  <Select value={defaultClass} onValueChange={setDefaultClass}>
+                  <Select
+                    value={defaultClass === '' ? '__none__' : defaultClass}
+                    onValueChange={(v) => setDefaultClass(v === '__none__' ? '' : v)}
+                  >
                     <SelectTrigger><SelectValue placeholder="No class" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No class (assign later)</SelectItem>
+                      <SelectItem value="__none__">No class (assign later)</SelectItem>
                       {availableClasses.map(c => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
